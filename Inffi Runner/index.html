@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+    
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <style>
+        * {
+            box-sizing:border-box;
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        @media only screen and (orientation:portrait){
+          body {
+            height: 100vw;
+            transform: rotate(90deg);
+          }
+        }
+        
+        canvas {
+            
+            border: 1px solid black;
+            background-color: azure;
+            background-image: url("bg6.png");
+            background-position: left;
+            background-size: cover;
+            background-repeat: no-repeat;
+            display: hidden;
+        }
+        
+        #buttons {
+            text-align: center;
+            margin-top: 0px;
+            padding: 10px;
+        }
+        
+        
+        
+        #restart {
+            display: none;
+            padding: 15px;
+            text-align: center;
+            background-color: red;
+            color: white;
+            font-size: 15px;
+            position: absolute;
+            float: right;
+            margin: auto;
+            max-width: 95px;
+            box-shadow: 1px 1px 4px 1px gray;
+            margin-top: -50px;
+            margin-left: 300px;
+        }
+        
+        #str {
+            text-align: center;
+            font-size: 40px;
+            font-family: verdana;
+            margin-top: 100px;
+            margin-right: 100px;
+            color: black;
+            display: block;
+            float: right;
+        }
+        
+        #str1 {
+            width: 200px;
+            height: 200px;
+            background-position: center;
+            background-size: contain;
+            border-radius: 10px;
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            margin: auto;
+            margin-top: 20px;
+            margin-left: 150px;
+            
+            justify-content: center;
+        }
+        
+        body {
+            background-color: black;
+        }
+        
+        #ins {
+            display: none;
+            margin-top: 0;
+        }
+        
+        h2 {
+            text-align: center;
+            font-size: 30px;
+            font-family: verdana;
+            color: white;
+        }
+        #ins {
+            color: lightgray;
+            font-weight: 100px;
+        }
+        
+        #jump {
+            display: none;
+            padding: 15px;
+            float: right;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: -35px;
+            margin-right: 50px;
+            background-color: dodgerblue;
+        }
+        
+        
+        
+    </style>
+    </head>
+    
+    <body>
+        <script>
+            
+            var ground;
+            var base;
+            var player;
+            var cactus = [];
+            var myScore;
+            var money = [];
+            var crashSound;
+            var coinSound;
+            var jumpSound;
+            var myMusic;
+            var bonus;
+            var coinbonus;
+            var restart;
+        
+            function startGame() {
+                myGameArea.start();
+                ground = new component(736, 20, "saddlebrown", 0, 250);
+                base = new component(736, 5, "green", 0, 250);
+                cactus = [];
+                stone = [];
+                money = [];
+                player = new component(80, 80, "pngegg.png", 90, 270, "image");
+                myScore = new component("22px", "consolas", "white", 570, 22, "text");
+                restart = new component("30px", "consolas", "white", 250, 175, "text");
+                bonus = new component("50px", "consolas", "white", 290, 115, "text");
+                coinbonus = new component("20px", "consolas", "white", 400, 135, "text");
+                crashSound = new sound("crashcanny.ogg");
+                coinSound = new sound("coincollect2.ogg");
+                jumpSound = new sound("jumpcanny.ogg");
+                myMusic = new sound("bgcanny.mp3");
+                myMusic.play();
+                startHidden();
+                document.getElementById("jump").style.display='block';
+                document.getElementById("ins").style.display='block';
+                document.getElementById("str1").style.display='none';
+                document.getElementById("name").style.display='none';
+                document.getElementById("restart").style.display='none';
+            }
+            
+            var myGameArea = {
+                canvas : document.createElement("canvas"),
+                start : function() {
+                    this.canvas.width = 736;
+                    this.canvas.height = 290;
+                    this.context = this.canvas.getContext("2d");
+                    document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+                    this.frameNo = 0;
+                    this.interval = setInterval(updateGameArea, 20);
+                },
+                clear : function() {
+                    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                },
+                stop : function() {
+                    clearInterval(this.interval);
+                }
+                
+            }
+            
+            function component(width, height, color, x, y, type) {
+              this.type = type;
+              this.width = width;
+              this.height = height;
+              if (this.type == "image") {
+                  this.image = new Image();
+                  this.image.src = color;
+              }
+              this.x = x;
+              this.y = y;
+              this.speedX = 0;
+              this.speedY = 0;    
+              this.gravity = 0.06;
+              this.gravitySpeed = 0;
+              this.update = function() {
+                  ctx = myGameArea.context;
+                    if (type == "image") {
+                      ctx.drawImage(this.image,
+                        this.x,
+                        this.y,
+                        this.width, this.height);
+                    } else if (type == "text") {
+                        ctx.font = this.width + " " + this.height;
+                        ctx.fillStyle = color;
+                        ctx.fillText(this.text, this.x, this.y);
+                    } else {
+                      ctx.fillStyle = color;
+                      ctx.fillRect(this.x, this.y, this.width, this.height);
+                  }
+               }
+              
+               this.newPos = function() {
+                this.gravitySpeed += this.gravity;
+                this.x += this.speedX;
+                this.y += this.speedY + this.gravitySpeed;
+                this.hitBottom();
+            }
+               
+               this.crashWith = function(otherobj) {
+                    var myleft = this.x;
+                    var myright = this.x + (this.width);
+                    var mytop = this.y;
+                    var mybottom = this.y + (this.height);
+                    var otherleft = otherobj.x + 20;
+                    var otherright = otherobj.x + (otherobj.width) - 30;
+                    var othertop = otherobj.y;
+                    var otherbottom = otherobj.y + (otherobj.height);
+                    var crash = true;
+                    if ((mybottom < othertop) ||
+                    (mytop > otherbottom) ||
+                    (myright < otherleft) ||
+                    (myleft > otherright)) {
+                      crash = false;
+                    }
+                    return crash;
+                  }
+               
+               this.hitBottom = function() {
+                var rockbottom = myGameArea.canvas.height - this.height - 35;
+                if (this.y > rockbottom) {
+                    this.y = rockbottom;
+                    this.gravitySpeed = 0;
+                }
+              }
+            }
+            
+            function updateGameArea() {
+               var x, y;
+               for (i = 0; i < cactus.length; i += 1) {
+                   if (player.crashWith(cactus[i])) {
+                       myGameArea.stop();
+                       crashSound.play();
+                       myMusic.stop();
+                       bonus.text = myGameArea.frameNo;
+                       bonus.update();
+                       displayres();
+                       jumpSound.stop();
+                       return;
+                   }
+               }
+                for (i = 0; i < money.length; i += 1) {
+                   if (player.crashWith(money[i])) {
+                       coinbonus.text = "Hello";
+                       coinbonus.update();
+                       money[i].x = -100;
+                       myGameArea.frameNo = myGameArea.frameNo + 100;
+                       coinSound.play();
+                   }
+               }
+                
+                
+              myGameArea.clear();
+              myGameArea.frameNo += 1;
+                
+              if (myGameArea.frameNo == 1 || everyinterval(150)) {
+                  x = myGameArea.canvas.width;
+                  y = myGameArea.canvas.height;
+                  
+                  gap = Math.floor(Math.random() * (1500 - 750) +  750)
+                  gap1 = Math.floor(Math.random() * (950 - 750) +  750)
+                  gap2 = Math.floor(Math.random() * (1400 - 1100) + 1100 )
+                  gap3 = Math.floor(Math.random() * (5300 - 4300) + 1300 )
+                  
+                  const random = [gap1, gap2, gap3];
+                  
+                  cactus.push(new component(30, 30, "cactus.png", gap, 220, "image"));
+                  
+                  
+              }
+                
+              if (everyinterval(100)) {
+                  money.push(new component(20, 20, "goldcoin.png", gap + 70, 210, "image"));
+                  money.push(new component(20, 20, "goldcoin.png", gap + 140, 210, "image"));
+                  money.push(new component(20, 20, "goldcoin.png", gap + 300, 140, "image"));
+                  money.push(new component(20, 20, "goldcoin.png", gap + 500, 170, "image"));
+              }
+              
+                
+              for (i = 0; i < cactus.length; i += 1) {
+                  cactus[i].x += -6.5;
+                  if (myGameArea.frameNo > 3000) {
+                    cactus[i].x += -7.5;
+                    cactus[i].update();
+              }
+                  cactus[i].update();
+              }
+                
+              for (i = 0; i < money.length; i += 1) {
+                  money[i].x += -6.5;
+                  money[i].update();
+              }
+            
+                
+              
+                
+                
+              myScore.text = "SCORE: " + myGameArea.frameNo;
+              myScore.update();
+              ground.update();
+              base.update();
+              player.newPos();
+              player.update();
+              collide();
+           }
+        
+        function accelerate(n) {
+            player.gravity = n;
+        }
+            
+            
+        function everyinterval(n) {
+          if ((myGameArea.frameNo / n) % 1 == 0) {return true;}
+          return false;
+        }
+            
+            
+            
+        function sound(src) {
+          this.sound = document.createElement("audio");
+          this.sound.src = src;
+          this.sound.setAttribute("preload", "auto");
+          this.sound.setAttribute("controls", "none");
+          this.sound.style.display = "none";
+          document.body.appendChild(this.sound);
+          this.play = function(){
+            this.sound.play();
+          }
+          this.stop = function(){
+            this.sound.pause();
+          }
+        }
+            
+        function collide() {
+            if (player.y <= 130) {
+                accelerate(1.2);
+            }
+       }
+            
+            
+            
+            function displayres() {
+                document.getElementById('restart').style.display = "block";
+            }
+            
+            function startHidden() {
+                document.getElementById('str').style.display = "none";
+            }
+            
+            function rest() {
+                myGameArea.stop();
+                myGameArea.clear();
+                startGame();
+            }
+            
+    
+                                                                                                                                
+            
+        
+        </script>
+        <div id="home">
+        <h2 id="name">Ninja run</h2>
+        <img id="str1" src="pngegg.png">
+            
+        <img onclick="startGame()" id="str" src="play-button.png">
+            </div>
+        <br>
+        
+        <div id="buttons">
+            <p id="ins">Double click to jump high</p>
+            <button id="jump" onclick="accelerate(-2.0) + jumpSound.play()"  onmousedown="accelerate(-1.5)" onmouseup="accelerate(0.4)">Jump</button>
+            <button id="restart" onclick="rest()">Restart</button>
+        </div>
+    
+    </body>
+
+
+
+
+
+
+</html>
